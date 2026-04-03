@@ -78,9 +78,9 @@ const handleWebhook = async (req, res) => {
     let healResult   = null;
 
     if (isAnomaly) {
-      // Step 5a: Generate human-readable explanation
-      explanation = generateExplanation(anomalyType || 'UNKNOWN');
-      console.log(`[EXPLANATION] txn_id="${txn_id}" anomalyType="${anomalyType}": ${explanation}`);
+      // Step 5a: Generate human-readable explanation via LLM
+      explanation = await generateExplanation(anomalyType || 'UNKNOWN', txn_id, txnEvents?.map(e => e.event_type) || []);
+      console.log(`[EXPLANATION] txn_id="${txn_id}": ${explanation}`);
 
       // Step 5b: Attempt auto-heal
       try {
