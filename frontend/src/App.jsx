@@ -598,23 +598,33 @@ function DashboardPage() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-          <div style={{ ...styles.card, flex: 1 }}>
-            <div style={{ fontSize: "11px", color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "2px", marginBottom: "20px" }}>
-              Pattern Detection Insights
+          <div style={{ ...styles.card, display: "flex", flexDirection: "column", flex: 1, padding: "28px" }}>
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "14px", color: COLORS.text, fontWeight: "600", letterSpacing: "0.5px", marginBottom: "6px" }}>
+                Active Anomalies
+              </div>
+              <div style={{ fontSize: "12px", color: COLORS.textDim }}>
+                Recent alerts and detected issues
+              </div>
             </div>
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "16px" }}>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
               {[
-                "Failure spike detected in last 15 min",
-                "Duplicate retry storm probability elevated",
-                "Refund anomaly rate above baseline",
-                "Capture-to-success latency deviating from norm"
-              ].map((text, i) => (
-                <li key={i} style={{ fontSize: "12px", color: COLORS.text, display: "flex", alignItems: "center", gap: "12px", letterSpacing: "0.5px" }}>
-                  <div style={{ width: "6px", height: "6px", background: COLORS.blue, borderRadius: "50%", boxShadow: `0 0 8px ${COLORS.blue}` }} />
-                  {text}
-                </li>
+                { title: "Failure Spike Detected", desc: "Failure rate increased 4x from baseline on /api/auth/login", time: "2 min ago", color: COLORS.red, borderColor: "rgba(255, 71, 71, 0.4)", icon: "⚠" },
+                { title: "Traffic Surge", desc: "Request volume 120% above normal across all endpoints", time: "15 min ago", color: COLORS.amber, borderColor: "rgba(255, 184, 0, 0.4)", icon: "📈" },
+                { title: "Latency Degradation", desc: "P99 latency exceeded 2s threshold on /api/search", time: "28 min ago", color: COLORS.amber, borderColor: "rgba(255, 184, 0, 0.4)", icon: "🕒" },
+                { title: "Rate Limit Approaching", desc: "API gateway at 85% of configured rate limit", time: "1 hr ago", color: COLORS.blue, borderColor: "rgba(77, 163, 255, 0.4)", icon: "⚡" }
+              ].map((alert, i) => (
+                <div key={i} style={{ flex: 1, display: "flex", alignItems: "center", gap: "16px", padding: "16px 20px", border: `1px solid ${alert.borderColor}`, borderRadius: "8px", background: `linear-gradient(90deg, ${alert.borderColor.replace('0.4', '0.08')} 0%, transparent 100%)` }}>
+                   <div style={{ fontSize: "16px", color: alert.color, width: "20px", textAlign: "center" }}>{alert.icon}</div>
+                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+                     <div style={{ fontSize: "14px", fontWeight: "600", color: COLORS.text, letterSpacing: "0.2px" }}>{alert.title}</div>
+                     <div style={{ fontSize: "12px", color: COLORS.textMuted }}>{alert.desc}</div>
+                   </div>
+                   <div style={{ fontSize: "11px", color: COLORS.textDim, whiteSpace: "nowrap" }}>{alert.time}</div>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
           <div style={{ ...styles.card, padding: "20px 28px" }}>
             <div style={{ fontSize: "11px", color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "2px", marginBottom: "16px" }}>
