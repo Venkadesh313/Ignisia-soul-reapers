@@ -525,11 +525,14 @@ function DashboardPage() {
          "OUT_OF_ORDER": "Out-of-Order",
          "DUPLICATE_EVENT": "Duplicate Event",
          "EMPTY_EVENTS": "Missing Success", 
-         "INVALID_EVENTS": "Delayed Capture"
+         "INVALID_EVENTS": "Delayed Capture",
+         "REPLAY_ATTACK_BLOCKED": "🚨 REPLAY ATTACK BLOCKED"
      };
      
      let issueName = typeMap[dbRow.anomaly_reason] || (dbRow.anomaly_reason ? dbRow.anomaly_reason.replace(/_/g, " ") : "System Fault");
-     let statusString = dbRow.status === "RESOLVED" ? "Resolved" : dbRow.status === "MANUAL_REVIEW" ? "Under Review" : "Auto-Healed";
+     let statusString = dbRow.anomaly_reason === "REPLAY_ATTACK_BLOCKED" ? "Blocked Threat" : 
+                        dbRow.status === "RESOLVED" ? "Resolved" : 
+                        dbRow.status === "MANUAL_REVIEW" ? "Under Review" : "Auto-Healed";
      
      return { 
        id: dbRow.transaction_id, 
