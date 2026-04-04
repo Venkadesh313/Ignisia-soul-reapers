@@ -1099,6 +1099,175 @@ function AIEnginePage() {
           </table>
         )}
       </div>
+
+      {/* Auto-Heal Simulator */}
+      <div style={{ ...styles.card, marginTop: "24px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "24px" }}>
+          <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: COLORS.green, boxShadow: `0 0 12px ${COLORS.green}` }} />
+          <div style={{ fontSize: "11px", color: COLORS.text, textTransform: "uppercase", letterSpacing: "2px", fontWeight: "600" }}>Auto-Heal Engine — Live Simulation</div>
+        </div>
+        <div style={{ fontSize: "12px", color: COLORS.textDim, marginBottom: "24px", lineHeight: "1.6" }}>
+          This demonstrates how the system detects missing webhook events in a transaction sequence and autonomously injects the missing states to repair the ledger.
+        </div>
+        <AutoHealSimulator />
+      </div>
+    </div>
+  );
+}
+
+function AutoHealSimulator() {
+  const EXPECTED = ["created", "captured", "success"];
+  const [scenario, setScenario] = useState("missing_created");
+  const [steps, setSteps] = useState([]);
+  const [running, setRunning] = useState(false);
+  const [currentStep, setCurrentStep] = useState(-1);
+
+  const scenarios = {
+    missing_created: { label: "Missing 'Created' Event", received: ["captured", "success"], desc: "Gateway skipped the initial 'created' event" },
+    out_of_order: { label: "Out-of-Order Events", received: ["success", "created", "captured"], desc: "Events arrived in wrong sequence" },
+    missing_middle: { label: "Missing 'Captured' Event", received: ["created", "success"], desc: "The 'captured' event was dropped during transit" },
+    complete: { label: "Clean Transaction (No Anomaly)", received: ["created", "captured", "success"], desc: "All events arrived correctly" },
+  };
+
+  const runHealSimulation = async () => {
+    setRunning(true);
+    setSteps([]);
+    setCurrentStep(0);
+    const sc = scenarios[scenario];
+    const newSteps = [];
+
+    // Step 1: Show received events
+    newSteps.push({ phase: "INGEST", status: "info", title: "Webhook Events Received", detail: `Events in DB: [${sc.received.join(" → ")}]`, time: Date.now() });
+    setSteps([...newSteps]);
+    setCurrentStep(1);
+    await new Promise(r => setTimeout(r, 800));
+
+    // Step 2: State machine analysis
+    const receivedSet = new Set(sc.received);
+    const missing = EXPECTED.filter(e => !receivedSet.has(e));
+    const outOfOrder = sc.received.length === EXPECTED.length && JSON.stringify(sc.received) !== JSON.stringify(EXPECTED);
+
+    if (missing.length === 0 && !outOfOrder) {
+      newSteps.push({ phase: "ANALYZE", status: "success", title: "State Machine Check", detail: `Sequence complete: [${EXPECTED.join(" → ")}]. No anomaly detected.`, time: Date.now() });
+      setSteps([...newSteps]);
+      setCurrentStep(2);
+      await new Promise(r => setTimeout(r, 600));
+      newSteps.push({ phase: "RESULT", status: "success", title: "Transaction Status: CLEAN", detail: "No healing required. Ledger is balanced.", time: Date.now() });
+      setSteps([...newSteps]);
+      setCurrentStep(3);
+      setRunning(false);
+      return;
+    }
+
+    if (outOfOrder) {
+      newSteps.push({ phase: "ANALYZE", status: "warning", title: "⚠ Out-of-Order Detected", detail: `Expected: [${EXPECTED.join(" → ")}] but received: [${sc.received.join(" → ")}]`, time: Date.now() });
+    } else {
+      newSteps.push({ phase: "ANALYZE", status: "warning", title: `⚠ Missing Events Detected`, detail: `Expected: [${EXPECTED.join(" → ")}]. Missing: [${missing.join(", ")}]`, time: Date.now() });
+    }
+    setSteps([...newSteps]);
+    setCurrentStep(2);
+    await new Promise(r => setTimeout(r, 800));
+
+    // Step 3: AI Scoring
+    newSteps.push({ phase: "AI_SCORE", status: "info", title: "Python AI Engine → /api/score", detail: "Forwarding transaction to Isolation Forest for anomaly classification...", time: Date.now() });
+    setSteps([...newSteps]);
+    setCurrentStep(3);
+    await new Promise(r => setTimeout(r, 1000));
+
+    newSteps.push({ phase: "AI_RESULT", status: "danger", title: "AI Verdict: ANOMALY DETECTED", detail: `Isolation Forest flagged this transaction. Triggering auto-heal protocol.`, time: Date.now() });
+    setSteps([...newSteps]);
+    setCurrentStep(4);
+    await new Promise(r => setTimeout(r, 800));
+
+    // Step 4: Heal each missing event
+    if (outOfOrder) {
+      newSteps.push({ phase: "HEAL", status: "healing", title: "Re-sequencing Events", detail: `Correcting order: [${sc.received.join(" → ")}] → [${EXPECTED.join(" → ")}]`, time: Date.now() });
+      setSteps([...newSteps]);
+      setCurrentStep(5);
+      await new Promise(r => setTimeout(r, 800));
+    } else {
+      for (let i = 0; i < missing.length; i++) {
+        newSteps.push({ phase: "HEAL", status: "healing", title: `Injecting Missing Event: "${missing[i]}"`, detail: `Mock Gateway → fetch_missing_event("${missing[i]}") → INSERT into ledger with is_healed=1`, time: Date.now() });
+        setSteps([...newSteps]);
+        setCurrentStep(5 + i);
+        await new Promise(r => setTimeout(r, 900));
+      }
+    }
+
+    // Step 5: Final result
+    newSteps.push({ phase: "RESULT", status: "success", title: "✓ Transaction Auto-Healed", detail: `Final sequence: [${EXPECTED.join(" → ")}]. Ledger integrity restored. Status: RESOLVED.`, time: Date.now() });
+    setSteps([...newSteps]);
+    setCurrentStep(99);
+    setRunning(false);
+  };
+
+  const phaseColors = {
+    INGEST: COLORS.blue,
+    ANALYZE: COLORS.amber,
+    AI_SCORE: COLORS.blue,
+    AI_RESULT: COLORS.red,
+    HEAL: COLORS.green,
+    RESULT: COLORS.green,
+  };
+
+  const statusIcons = {
+    info: "📥",
+    warning: "⚠",
+    danger: "🚨",
+    healing: "🔧",
+    success: "✓",
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: "12px", alignItems: "flex-end", marginBottom: "24px" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: "10px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "8px" }}>Select Scenario</div>
+          <select style={{ ...styles.input, cursor: "pointer" }} value={scenario} onChange={e => setScenario(e.target.value)}>
+            {Object.entries(scenarios).map(([key, val]) => (
+              <option key={key} value={key}>{val.label}</option>
+            ))}
+          </select>
+        </div>
+        <button style={{ ...styles.btn(), padding: "14px 32px", whiteSpace: "nowrap" }} onClick={runHealSimulation} disabled={running}
+          onMouseEnter={e => { if(!running) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#fff'; }}}
+          onMouseLeave={e => { if(!running) { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#000'; }}}>
+          {running ? "Healing..." : "Run Simulation"}
+        </button>
+      </div>
+
+      <div style={{ fontSize: "11px", color: COLORS.textDim, marginBottom: "24px", padding: "12px 16px", background: "rgba(255,255,255,0.03)", border: `1px solid ${COLORS.border}`, borderRadius: "4px" }}>
+        {scenarios[scenario].desc} — Expected sequence: <span style={{ color: COLORS.text, fontFamily: "'Space Grotesk', monospace" }}>{EXPECTED.join(" → ")}</span>
+      </div>
+
+      {steps.length > 0 && (
+        <div style={{ position: "relative", paddingLeft: "24px" }}>
+          {/* Vertical timeline line */}
+          <div style={{ position: "absolute", left: "7px", top: "8px", bottom: "8px", width: "2px", background: COLORS.border }} />
+
+          {steps.map((step, i) => (
+            <div key={i} style={{ position: "relative", marginBottom: "16px", paddingLeft: "24px", opacity: i <= currentStep ? 1 : 0.3, transition: "opacity 0.4s ease" }}>
+              {/* Timeline dot */}
+              <div style={{
+                position: "absolute", left: "-20px", top: "6px",
+                width: "12px", height: "12px", borderRadius: "50%",
+                background: phaseColors[step.phase] || COLORS.textDim,
+                boxShadow: `0 0 8px ${phaseColors[step.phase] || COLORS.textDim}60`,
+                border: `2px solid ${COLORS.bg}`
+              }} />
+
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                <span style={{ fontSize: "14px" }}>{statusIcons[step.status]}</span>
+                <span style={styles.badge(phaseColors[step.phase] || COLORS.textMuted, `${phaseColors[step.phase]}20` || "transparent")}>{step.phase}</span>
+                <span style={{ fontSize: "13px", color: COLORS.text, fontWeight: "500" }}>{step.title}</span>
+              </div>
+              <div style={{ fontSize: "12px", color: COLORS.textDim, lineHeight: "1.5", fontFamily: "'Space Grotesk', monospace" }}>
+                {step.detail}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
