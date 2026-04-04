@@ -900,7 +900,31 @@ function AIEnginePage() {
 
   const [history, setHistory] = useState([]);
 
+  // Live anomaly auto-detection feed
+  const [liveAnomalies, setLiveAnomalies] = useState([]);
+  const [liveMetrics, setLiveMetrics] = useState(null);
+
   const PYTHON_AI = "http://localhost:8000";
+
+  // Auto-fetch live anomalies from backend every 4 seconds
+  useEffect(() => {
+    const fetchLive = async () => {
+      try {
+        const [issuesRes, metricsRes] = await Promise.all([
+          fetch(`${API}/issues`),
+          fetch(`${API}/metrics`)
+        ]);
+        if (issuesRes.ok) {
+          const issues = await issuesRes.json();
+          setLiveAnomalies(issues.filter(i => i.status !== 'CLEAN').slice(0, 10));
+        }
+        if (metricsRes.ok) setLiveMetrics(await metricsRes.json());
+      } catch {}
+    };
+    fetchLive();
+    const interval = setInterval(fetchLive, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const runAnomalyScore = async () => {
     setScoring(true);
@@ -954,6 +978,51 @@ function AIEnginePage() {
     <div style={styles.content}>
       <div style={styles.pageTitle}>AI Engine Console</div>
       <div style={styles.pageSubtitle}>Live interface to the Python Isolation Forest & Security AI Microservice (Port 8000)</div>
+
+      {/* Live Auto-Detected Anomalies */}
+      <div style={{ ...styles.card, marginBottom: "24px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: COLORS.red, animation: "pulse 2s infinite" }} />
+            <div style={{ fontSize: "11px", color: COLORS.text, textTransform: "uppercase", letterSpacing: "2px", fontWeight: "600" }}>Live Anomaly Auto-Detection Feed</div>
+          </div>
+          {liveMetrics && (
+            <div style={{ display: "flex", gap: "24px" }}>
+              <span style={{ fontSize: "10px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "1px" }}>
+                Total Processed: <span style={{ color: COLORS.text, fontFamily: "'Space Grotesk', monospace" }}>{liveMetrics.total_transactions || 0}</span>
+              </span>
+              <span style={{ fontSize: "10px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "1px" }}>
+                Anomaly Rate: <span style={{ color: COLORS.red, fontFamily: "'Space Grotesk', monospace" }}>{liveMetrics.anomaly_rate ? (liveMetrics.anomaly_rate * 100).toFixed(1) + "%" : "0%"}</span>
+              </span>
+              <span style={{ fontSize: "10px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "1px" }}>
+                Heal Rate: <span style={{ color: COLORS.green, fontFamily: "'Space Grotesk', monospace" }}>{liveMetrics.heal_success_rate ? (liveMetrics.heal_success_rate * 100).toFixed(1) + "%" : "0%"}</span>
+              </span>
+            </div>
+          )}
+        </div>
+        {liveAnomalies.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "32px", color: COLORS.textDim, fontSize: "12px" }}>No active anomalies detected — all transactions are clean.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {liveAnomalies.map((a, i) => {
+              const isReplay = a.anomaly_reason === "REPLAY_ATTACK_BLOCKED";
+              const isHealed = a.status === "RESOLVED" || a.status === "AUTO_HEALED";
+              const accentColor = isReplay ? COLORS.red : isHealed ? COLORS.green : COLORS.amber;
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: "16px", padding: "12px 16px", border: `1px solid ${accentColor}30`, borderRadius: "4px", background: `${accentColor}08` }}>
+                  <span style={{ fontSize: "16px" }}>{isReplay ? "🚨" : isHealed ? "✓" : "⚠"}</span>
+                  <span style={{ fontFamily: "'Space Grotesk', monospace", fontSize: "12px", color: COLORS.text, width: "120px" }}>{a.transaction_id}</span>
+                  <span style={styles.badge(accentColor, `${accentColor}20`)}>{a.anomaly_reason?.replace(/_/g, " ") || "UNKNOWN"}</span>
+                  <span style={{ flex: 1, fontSize: "11px", color: COLORS.textDim, fontStyle: "italic" }}>{a.explanation || ""}</span>
+                  <span style={styles.badge(isHealed ? COLORS.green : isReplay ? COLORS.red : COLORS.amber, "transparent")}>
+                    {isHealed ? "AUTO-HEALED" : isReplay ? "BLOCKED" : a.status}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div style={styles.grid2}>
         {/* LEFT: Anomaly Scoring */}
