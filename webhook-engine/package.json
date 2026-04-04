@@ -1,0 +1,22 @@
+{
+  "name": "webhook-reconciliation-engine",
+  "version": "1.0.0",
+  "description": "Webhook Reconciliation Engine - Ingests, deduplicates, and reconciles webhook events",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "pg": "^8.13.1",
+    "redis": "^4.7.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  },
+  "keywords": ["webhook", "reconciliation", "engine"],
+  "license": "ISC"
+}
