@@ -64,6 +64,7 @@ const handleWebhook = async (req, res) => {
 
     const aiResult = await detectPatternAnomaly({
       txn_id,
+      amount,
       events:      txnEvents || [],
       receiveTime: new Date().toISOString(),
     });

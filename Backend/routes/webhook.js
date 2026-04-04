@@ -18,13 +18,16 @@ const {
 } = require('../controllers/webhookController');
 
 // ─── Webhook Ingestion ────────────────────────────────────────────────────────
+const { dynamicRateLimiter } = require('../middleware/rateLimit');
+
 // POST /webhook
 // Middleware chain (left → right):
-//   1. verifySignature  — reject invalid HMAC-SHA256 signatures (401)
-//   2. validatePayload  — reject missing/empty required fields (400)
-//   3. checkIdempotency — skip already-processed events (200 early return)
-//   4. handleWebhook    — full reconciliation pipeline
-router.post('/webhook', verifySignature, validatePayload, checkIdempotency, handleWebhook);
+//   1. dynamicRateLimiter - surge protection
+//   2. verifySignature  — reject invalid HMAC-SHA256 signatures (401)
+//   3. validatePayload  — reject missing/empty required fields (400)
+//   4. checkIdempotency — skip already-processed events (200 early return)
+//   5. handleWebhook    — full reconciliation pipeline
+router.post('/webhook', dynamicRateLimiter, verifySignature, validatePayload, checkIdempotency, handleWebhook);
 
 // ─── Query Endpoints ──────────────────────────────────────────────────────────
 
