@@ -1,0 +1,4 @@
+# file: D:\Ignisia\simulator.py
+# hypothesis_version: 6.151.10
+
+[100, 500, 750, 1000, 1250, '__main__', 'amount_cents', 'completed', 'initiated', 'processing', 'status', 'timestamp', 'transaction_id']

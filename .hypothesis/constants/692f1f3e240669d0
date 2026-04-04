@@ -1,0 +1,4 @@
+# file: C:\Users\Venkadesh yadavar\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sklearn\metrics\cluster\__init__.py
+# hypothesis_version: 6.151.10
+
+['adjusted_rand_score', 'completeness_score', 'consensus_score', 'contingency_matrix', 'davies_bouldin_score', 'entropy', 'homogeneity_score', 'mutual_info_score', 'rand_score', 'silhouette_samples', 'silhouette_score', 'v_measure_score']

@@ -1,0 +1,4 @@
+# file: D:\Ignisia\database.py
+# hypothesis_version: 6.151.10
+
+['anomaly_count', 'anomaly_score', 'check_same_thread', 'healed_at', 'healed_count', 'id', 'idempotency_key', 'idx_received_at', 'idx_transaction_id', 'is_anomaly', 'is_healed', 'payload', 'received_at', 'recent_events', 'status', 'timestamp', 'total_events', 'transaction_id', 'webhook_events']
