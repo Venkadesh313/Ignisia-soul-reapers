@@ -17,6 +17,10 @@ const checkRouter = require('./src/routes/check');
 const healRouter     = require('./src/routes/heal');
 const patternsRouter = require('./src/routes/patterns');
 const reviewRouter   = require('./src/routes/review');
+const dashboardRouter = require('./src/routes/dashboard');
+
+require('./src/config/db');
+const { startPatternDetectionJob } = require('./src/jobs/runPatternDetection');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -53,6 +57,9 @@ app.use('/patterns', patternsRouter);
 // Human review decisions
 app.use('/review', reviewRouter);
 
+// AI Pattern Insights Dashboard
+app.use('/api/dashboard', dashboardRouter);
+
 // ── Startup ────────────────────────────────────────────────────
 async function start() {
   try {
@@ -61,6 +68,7 @@ async function start() {
 
     app.listen(PORT, () => {
       logger.info(`Webhook engine listening on port ${PORT}`);
+      startPatternDetectionJob();
     });
   } catch (err) {
     logger.error('Failed to start server', err.message);

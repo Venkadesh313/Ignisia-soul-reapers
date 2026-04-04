@@ -52,6 +52,18 @@ async function initDB() {
       )
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pattern_insights (
+        id SERIAL PRIMARY KEY,
+        type TEXT NOT NULL,
+        severity TEXT NOT NULL,
+        message TEXT,
+        current_value FLOAT,
+        baseline_value FLOAT,
+        detected_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
     console.log('[INFO] All tables ready');
   } catch (err) {
     console.error('[ERROR] Table init failed:', err.message);
