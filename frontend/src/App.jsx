@@ -886,9 +886,226 @@ function GatewayPage() {
     </div>
   ); 
 }
+function AIEnginePage() {
+  const [txnId, setTxnId] = useState("txn_demo_001");
+  const [amount, setAmount] = useState("5000");
+  const [status, setStatus] = useState("processing");
+  const [scoreResult, setScoreResult] = useState(null);
+  const [scoring, setScoring] = useState(false);
+
+  const [replayTxnId, setReplayTxnId] = useState("txn_demo_001");
+  const [replayDelta, setReplayDelta] = useState("50");
+  const [securityResult, setSecurityResult] = useState(null);
+  const [checking, setChecking] = useState(false);
+
+  const [history, setHistory] = useState([]);
+
+  const PYTHON_AI = "http://localhost:8000";
+
+  const runAnomalyScore = async () => {
+    setScoring(true);
+    setScoreResult(null);
+    const start = performance.now();
+    try {
+      const res = await fetch(`${PYTHON_AI}/api/score`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transaction_id: txnId, amount: parseFloat(amount), events: [], receiveTime: new Date().toISOString() })
+      });
+      const data = await res.json();
+      const latency = (performance.now() - start).toFixed(1);
+      const entry = { type: "ANOMALY_SCORE", txn: txnId, result: data, latency, time: new Date().toLocaleTimeString() };
+      setScoreResult({ ...data, latency });
+      setHistory(prev => [entry, ...prev].slice(0, 20));
+    } catch (err) {
+      setScoreResult({ error: err.message });
+    }
+    setScoring(false);
+  };
+
+  const runSecurityCheck = async () => {
+    setChecking(true);
+    setSecurityResult(null);
+    const start = performance.now();
+    try {
+      const res = await fetch(`${PYTHON_AI}/api/security-score`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transaction_id: replayTxnId, event_type: "success", amount_cents: 500000, timing_delta_ms: parseInt(replayDelta) })
+      });
+      const data = await res.json();
+      const latency = (performance.now() - start).toFixed(1);
+      const entry = { type: "SECURITY_SCORE", txn: replayTxnId, result: data, latency, time: new Date().toLocaleTimeString() };
+      setSecurityResult({ ...data, latency });
+      setHistory(prev => [entry, ...prev].slice(0, 20));
+    } catch (err) {
+      setSecurityResult({ error: err.message });
+    }
+    setChecking(false);
+  };
+
+  const gaugeBar = (score, max, color) => (
+    <div style={{ width: "100%", height: "8px", background: COLORS.border, borderRadius: "4px", overflow: "hidden", marginTop: "8px" }}>
+      <div style={{ width: `${Math.min(Math.abs(score / max) * 100, 100)}%`, height: "100%", background: color, borderRadius: "4px", transition: "width 0.6s ease" }} />
+    </div>
+  );
+
+  return (
+    <div style={styles.content}>
+      <div style={styles.pageTitle}>AI Engine Console</div>
+      <div style={styles.pageSubtitle}>Live interface to the Python Isolation Forest & Security AI Microservice (Port 8000)</div>
+
+      <div style={styles.grid2}>
+        {/* LEFT: Anomaly Scoring */}
+        <div style={styles.card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "24px" }}>
+            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: COLORS.blue, boxShadow: `0 0 12px ${COLORS.blue}` }} />
+            <div style={{ fontSize: "11px", color: COLORS.text, textTransform: "uppercase", letterSpacing: "2px", fontWeight: "600" }}>Isolation Forest — Anomaly Scoring</div>
+          </div>
+
+          <div style={{ fontSize: "10px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "8px" }}>Transaction ID</div>
+          <input style={{ ...styles.input, marginBottom: "12px" }} value={txnId} onChange={e => setTxnId(e.target.value)} />
+
+          <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "10px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "8px" }}>Amount (₹)</div>
+              <input style={styles.input} type="number" value={amount} onChange={e => setAmount(e.target.value)} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "10px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "8px" }}>Status</div>
+              <select style={{ ...styles.input, cursor: "pointer" }} value={status} onChange={e => setStatus(e.target.value)}>
+                <option value="initiated">Initiated</option>
+                <option value="processing">Processing</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+          </div>
+
+          <button style={{ ...styles.btn(), width: "100%", marginTop: "8px" }} onClick={runAnomalyScore}
+            onMouseEnter={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#000'; }}>
+            {scoring ? "Scoring..." : "Run Isolation Forest"}
+          </button>
+
+          {scoreResult && !scoreResult.error && (
+            <div style={{ marginTop: "24px", padding: "20px", background: "rgba(0,0,0,0.3)", border: `1px solid ${scoreResult.is_anomaly === 1 ? COLORS.red : COLORS.green}40`, borderRadius: "4px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <span style={styles.badge(scoreResult.is_anomaly === 1 ? COLORS.red : COLORS.green, scoreResult.is_anomaly === 1 ? COLORS.redDim : COLORS.greenDim)}>
+                  {scoreResult.is_anomaly === 1 ? "⚠ ANOMALY DETECTED" : "✓ NORMAL TRAFFIC"}
+                </span>
+                <span style={{ fontSize: "10px", color: COLORS.textDim, fontFamily: "'Space Grotesk', monospace" }}>{scoreResult.latency}ms</span>
+              </div>
+              <div style={{ fontSize: "10px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "8px" }}>Isolation Score</div>
+              <div style={{ fontSize: "32px", fontFamily: "'Space Grotesk', monospace", color: COLORS.text, fontWeight: "400" }}>
+                {scoreResult.raw_metrics?.isolation_score?.toFixed(4) || "N/A"}
+              </div>
+              {gaugeBar(scoreResult.raw_metrics?.isolation_score || 0, 0.5, scoreResult.is_anomaly === 1 ? COLORS.red : COLORS.green)}
+              {scoreResult.agent_reason && (
+                <div style={{ marginTop: "16px", padding: "12px", background: `${COLORS.red}10`, borderLeft: `3px solid ${COLORS.red}`, fontSize: "12px", color: COLORS.red, fontStyle: "italic" }}>
+                  {scoreResult.agent_reason}
+                </div>
+              )}
+            </div>
+          )}
+          {scoreResult?.error && <div style={{ marginTop: "16px", color: COLORS.red, fontSize: "12px" }}>Error: {scoreResult.error}</div>}
+        </div>
+
+        {/* RIGHT: Security / Replay Detection */}
+        <div style={styles.card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "24px" }}>
+            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: COLORS.red, boxShadow: `0 0 12px ${COLORS.red}` }} />
+            <div style={{ fontSize: "11px", color: COLORS.text, textTransform: "uppercase", letterSpacing: "2px", fontWeight: "600" }}>Replay Attack — Security AI</div>
+          </div>
+
+          <div style={{ fontSize: "10px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "8px" }}>Transaction ID</div>
+          <input style={{ ...styles.input, marginBottom: "12px" }} value={replayTxnId} onChange={e => setReplayTxnId(e.target.value)} />
+
+          <div style={{ fontSize: "10px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "8px" }}>Timing Delta (ms)</div>
+          <input style={{ ...styles.input, marginBottom: "4px" }} type="number" value={replayDelta} onChange={e => setReplayDelta(e.target.value)} />
+          <div style={{ fontSize: "9px", color: COLORS.textDim, marginBottom: "12px" }}>
+            Try: 50ms = harmless retry &nbsp;|&nbsp; 100000ms = malicious replay
+          </div>
+
+          <button style={{ ...styles.btn(), width: "100%", marginTop: "8px", background: COLORS.red, color: "#fff", border: `1px solid ${COLORS.red}` }} onClick={runSecurityCheck}
+            onMouseEnter={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = COLORS.red; }}
+            onMouseLeave={e => { e.currentTarget.style.background = COLORS.red; e.currentTarget.style.color = '#fff'; }}>
+            {checking ? "Analyzing..." : "Run Security Scan"}
+          </button>
+
+          {securityResult && !securityResult.error && (
+            <div style={{ marginTop: "24px", padding: "20px", background: "rgba(0,0,0,0.3)", border: `1px solid ${securityResult.is_malicious === 1 ? COLORS.red : COLORS.green}40`, borderRadius: "4px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <span style={styles.badge(securityResult.is_malicious === 1 ? COLORS.red : COLORS.green, securityResult.is_malicious === 1 ? COLORS.redDim : COLORS.greenDim)}>
+                  {securityResult.is_malicious === 1 ? "🚨 REPLAY ATTACK — BLOCKED" : "✓ HARMLESS RETRY"}
+                </span>
+                <span style={{ fontSize: "10px", color: COLORS.textDim, fontFamily: "'Space Grotesk', monospace" }}>{securityResult.latency}ms</span>
+              </div>
+              <div style={{ fontSize: "10px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "8px" }}>Fraud Probability</div>
+              <div style={{ fontSize: "32px", fontFamily: "'Space Grotesk', monospace", color: securityResult.is_malicious === 1 ? COLORS.red : COLORS.green, fontWeight: "400" }}>
+                {(securityResult.fraud_score * 100).toFixed(1)}%
+              </div>
+              {gaugeBar(securityResult.fraud_score, 1, securityResult.is_malicious === 1 ? COLORS.red : COLORS.green)}
+              <div style={{ marginTop: "16px", padding: "12px", background: `${securityResult.is_malicious === 1 ? COLORS.red : COLORS.blue}10`, borderLeft: `3px solid ${securityResult.is_malicious === 1 ? COLORS.red : COLORS.blue}`, fontSize: "12px", color: securityResult.is_malicious === 1 ? COLORS.red : COLORS.blueLight, fontStyle: "italic" }}>
+                {securityResult.reason}
+              </div>
+            </div>
+          )}
+          {securityResult?.error && <div style={{ marginTop: "16px", color: COLORS.red, fontSize: "12px" }}>Error: {securityResult.error}</div>}
+        </div>
+      </div>
+
+      {/* AI Decision Log */}
+      <div style={{ ...styles.card, marginTop: "24px" }}>
+        <div style={{ fontSize: "11px", color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "2px", marginBottom: "24px" }}>
+          AI Decision Audit Trail
+        </div>
+        {history.length === 0 ? (
+          <div style={styles.emptyState}>Run a scoring operation above to populate the audit trail...</div>
+        ) : (
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                {["Time", "Type", "Transaction", "Verdict", "Score", "Latency"].map(h => <th key={h} style={styles.th}>{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((h, i) => {
+                const isAnomaly = h.type === "ANOMALY_SCORE" ? h.result.is_anomaly === 1 : h.result.is_malicious === 1;
+                return (
+                  <tr key={i} style={{ transition: "background 0.2s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = COLORS.surfaceHover}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <td style={{ ...styles.td, fontSize: "11px", fontFamily: "'Space Grotesk', monospace" }}>{h.time}</td>
+                    <td style={styles.td}>
+                      <span style={styles.badge(h.type === "ANOMALY_SCORE" ? COLORS.blue : COLORS.amber, h.type === "ANOMALY_SCORE" ? COLORS.blueDim : COLORS.amberDim)}>
+                        {h.type === "ANOMALY_SCORE" ? "ML SCORE" : "SECURITY"}
+                      </span>
+                    </td>
+                    <td style={{ ...styles.td, fontFamily: "'Space Grotesk', monospace", color: COLORS.text }}>{h.txn}</td>
+                    <td style={styles.td}>
+                      <span style={styles.badge(isAnomaly ? COLORS.red : COLORS.green, isAnomaly ? COLORS.redDim : COLORS.greenDim)}>
+                        {isAnomaly ? (h.type === "ANOMALY_SCORE" ? "ANOMALY" : "BLOCKED") : (h.type === "ANOMALY_SCORE" ? "NORMAL" : "SAFE")}
+                      </span>
+                    </td>
+                    <td style={{ ...styles.td, fontFamily: "'Space Grotesk', monospace", color: isAnomaly ? COLORS.red : COLORS.green }}>
+                      {h.type === "ANOMALY_SCORE" ? h.result.raw_metrics?.isolation_score?.toFixed(3) : (h.result.fraud_score * 100).toFixed(1) + "%"}
+                    </td>
+                    <td style={{ ...styles.td, fontSize: "11px", color: COLORS.textDim }}>{h.latency}ms</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const NAV = [
   { id: "dashboard", label: "Dashboard" },
+  { id: "aiengine", label: "AI Engine" },
   { id: "heallog", label: "Interventions" },
   { id: "manual", label: "Manual Review" },
   { id: "gateway", label: "Gateway Node" },
@@ -900,7 +1117,7 @@ export default function App() {
 
   if (!user) return <LoginPage onLogin={setUser} />;
 
-  const pageMap = { dashboard: <DashboardPage />, heallog: <HealLogPage />, manual: <ManualReviewPage />, gateway: <GatewayPage /> };
+  const pageMap = { dashboard: <DashboardPage />, aiengine: <AIEnginePage />, heallog: <HealLogPage />, manual: <ManualReviewPage />, gateway: <GatewayPage /> };
   const pageTitle = NAV.find(n => n.id === page)?.label;
 
   return (
